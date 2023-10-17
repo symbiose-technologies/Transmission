@@ -69,7 +69,7 @@ public struct PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options.
     @frozen
-    public struct Options {
+    public struct Options: Equatable, Hashable {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
@@ -101,6 +101,7 @@ extension PresentationLinkTransition {
             return uiColor ?? UIColor(color)
         }
     }
+    
 }
 
 @available(iOS 14.0, *)
@@ -432,7 +433,7 @@ extension PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options for a slide transition.
     @frozen
-    public struct SlideTransitionOptions {
+    public struct SlideTransitionOptions: Equatable, Hashable {
 
         public var edge: Edge
         public var prefersScaleEffect: Bool
