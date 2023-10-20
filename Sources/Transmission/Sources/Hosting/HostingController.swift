@@ -167,6 +167,8 @@ open class _HostingController<
     open override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = nil
+//        self.definesPresentationContext = true
+//        print("_HostingController set definesPresentationContext = true")
     }
 }
 

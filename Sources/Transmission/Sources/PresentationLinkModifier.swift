@@ -159,20 +159,57 @@ private struct PresentationLinkModifierBody<
     var transition: PresentationLinkTransition
     var isPresented: Binding<Bool>
     var destination: Destination
-
+    
+    var presentsFromTopMostVC: Bool {
+        //pluck from the transition: options.presentsFromTopMostViewController
+        //        return true
+        return self.transition.options.presentsFromTopMostViewController
+    }
+    
+    func getPresentingViewController() -> UIViewController? {
+//        print("PresentationLinkModifier presentsFromTopMostVC: \(presentsFromTopMostVC) for transition: \(transition) isPresented: \(isPresented.wrappedValue)")
+      if presentsFromTopMostVC {
+          if let scene = UIApplication.shared
+            .connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+              return scene.windows
+                  .filter { !($0 is PassThroughWindow) }
+                  .first(where: { $0.isKeyWindow })?
+                  .rootViewController?
+                  .topMostPresentedViewController()
+          }
+          return nil
+          
+//          return UIApplication.shared.windows
+//              .filter { !($0 is PassThroughWindow) }
+//              .first(where: { $0.isKeyWindow })?
+//              .rootViewController?
+//              .topMostPresentedViewController()
+      } else {
+        return presentingViewController
+      }
+    }
+    
     @WeakState var presentingViewController: UIViewController?
 
+    var resolvedPresentingViewController: UIViewController? {
+        let vc = self.getPresentingViewController()
+        return vc
+    }
+    
     typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
             presentingViewController: $presentingViewController
         )
+        
+        self.updateUIView(uiView, context: context)
+        
         return uiView
     }
 
     func updateUIView(_ uiView: ViewControllerReader, context: Context) {
-        if let presentingViewController = presentingViewController, isPresented.wrappedValue {
+        if let presentingViewController = resolvedPresentingViewController, isPresented.wrappedValue {
 
             context.coordinator.isPresented = isPresented
 
@@ -376,6 +413,8 @@ private struct PresentationLinkModifierBody<
                     PresentationCoordinator.transaction = nil
                 }
             } else if viewController.presentingViewController != nil {
+                
+                
                 viewController.dismiss(animated: isAnimated) {
                     PresentationCoordinator.transaction = nil
                 }
@@ -710,6 +749,7 @@ private struct PresentationLinkModifierBody<
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                
                 presentationController.edge = options.edge
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
@@ -1006,6 +1046,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             }
             let ctx = _openExistential(adapter.context!, do: project)
             if adapter.viewController == nil {
+                
                 adapter.viewController = destination.makeUIViewController(context: ctx)
             }
             let viewController = adapter.viewController as! Content.UIViewControllerType
@@ -1021,7 +1062,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
 extension PresentationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
-
+        
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
         viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
 
@@ -1032,7 +1073,7 @@ extension PresentationLinkTransition.Value {
             } else {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
-
+            
         case .popover:
             viewController.tracksContentSize = true
 

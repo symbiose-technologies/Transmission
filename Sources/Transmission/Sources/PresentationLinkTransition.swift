@@ -60,6 +60,11 @@ public struct PresentationLinkTransition {
     public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .custom(.init(), transition))
     }
+    
+    public var options: Options {
+        self.value.options
+    }
+    
 }
 
 @available(iOS 14.0, *)
@@ -77,16 +82,23 @@ extension PresentationLinkTransition {
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
 
+        /// When true, the top-most View controller will be used insteaed of the source-view presenting view controller
+        public var presentsFromTopMostViewController: Bool
+
+        
         public init(
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
-            preferredPresentationBackgroundColor: Color? = nil
+            preferredPresentationBackgroundColor: Color? = nil,
+            presentsFromTopMostViewController: Bool = false
+
         ) {
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+            self.presentsFromTopMostViewController = presentsFromTopMostViewController
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
