@@ -50,6 +50,10 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 
     open override var presentationStyle: UIModalPresentationStyle { .overFullScreen }
 
+    override var shouldAutoLayoutPresentedView: Bool {
+        super.shouldAutoLayoutPresentedView && transition == nil
+    }
+
     public func dismiss(with transition: UIPercentDrivenInteractiveTransition) {
         self.transition = transition
         transition.wantsInteractiveStart = transition.wantsInteractiveStart && isTransitioning
@@ -464,6 +468,7 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             )
         } else {
             presented.view.layer.cornerRadius = cornerRadius
+            presenting.view.isHidden = false
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
                 presenting.view.transform = dzTransform
@@ -496,6 +501,10 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.transform = .identity
+            }
+
+            if isPresenting || animatingPosition != .end {
+                presenting.view.isHidden = true
             }
 
             switch animatingPosition {

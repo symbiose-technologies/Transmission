@@ -7,6 +7,7 @@
 import SwiftUI
 import Turbocharger
 
+@frozen
 public enum SnapshotRendererColorSpace {
     // The extended linear sRGB working color space.
     case extendedLinear
@@ -27,6 +28,14 @@ public enum SnapshotRendererColorSpace {
             return CGColorSpace(name: CGColorSpace.sRGB)!
         }
     }
+    func toUIKit() -> UIGraphicsImageRendererFormat.Range {
+        switch self {
+        case .extendedLinear:
+            return .extended
+        case .linear, .nonLinear:
+            return .standard
+        }
+    }
 }
 
 /// A backwards compatible port of `ImageRenderer`
@@ -45,18 +54,19 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
     }
 
     public var scale: CGFloat {
-        get { format.scale }
+        get { host.contentScaleFactor }
         set {
-            format.scale = newValue
-            host.content.modifier.scale = scale
+            host.contentScaleFactor = newValue
+            host.layer.contentsScale = newValue
+            host.content.modifier.scale = newValue
         }
     }
 
     public var isOpaque: Bool {
-        get { format.opaque }
+        get { host.layer.isOpaque }
         set {
-            format.opaque = newValue
             host.layer.isOpaque = newValue
+            objectWillChange.send()
         }
     }
 
@@ -64,19 +74,18 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
 
     public var proposedSize: Turbocharger.ProposedSize = .unspecified
 
-    private let format: UIGraphicsImageRendererFormat
     private let host: HostingView<ModifiedContent<Content, SnapshotRendererModifier>>
 
     public init(content: Content) {
-        let format = UIGraphicsImageRendererFormat()
-        self.format = format
         let host = HostingView(
-            content: content.modifier(
-                SnapshotRendererModifier(scale: format.scale)
-            )
+            content: content.modifier(SnapshotRendererModifier(scale: 1))
+
         )
         host.disablesSafeArea = true
+        host.layer.shouldRasterize = true
         self.host = host
+        isOpaque = false
+        scale = 1
     }
 
     public func render<Result>(
@@ -112,7 +121,10 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
             guard let context else {
                 return nil
             }
-            context.concatenate(CGAffineTransformMake(1, 0, 0, -1, 0, CGFloat(context.height)))
+            context.concatenate(
+                CGAffineTransformMake(1, 0, 0, -1, 0, CGFloat(context.height))
+            )
+
             callback(context)
             let image = context.makeImage()
             return image
@@ -121,7 +133,14 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
 
     public var uiImage: UIImage? {
         render { size, callback in
-            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = scale
+            format.opaque = isOpaque
+            format.preferredRange = colorSpace.toUIKit()
+            let renderer = UIGraphicsImageRenderer(
+                size: size,
+                format: format
+            )
             return renderer.image { context in
                 callback(context.cgContext)
             }
@@ -134,6 +153,44 @@ private struct SnapshotRendererModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.environment(\.displayScale, scale)
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+struct SnapshotRenderer_Previews: PreviewProvider {
+    struct Preview: View {
+        @StateObject var rendererA = SnapshotRenderer(content: Snapshot())
+        @StateObject var rendererC = ImageRenderer(content: Snapshot())
+
+        var body: some View {
+            VStack {
+                VStack {
+                    Snapshot()
+
+                    if let contentA = rendererA.uiImage {
+                        Image(uiImage: contentA)
+                    }
+
+
+                    if let contentC = rendererC.uiImage {
+                        Image(uiImage: contentC)
+                    }
+                }
+            }
+        }
+
+        struct Snapshot: View {
+            @Environment(\.displayScale) var displayScale
+            var body: some View {
+                Text("Hello, World")
+            }
+        }
+    }
+
+    static var previews: some View {
+        Preview()
     }
 }
 
