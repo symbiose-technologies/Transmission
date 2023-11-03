@@ -60,6 +60,11 @@ public struct PresentationLinkTransition {
     public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .custom(.init(), transition))
     }
+    
+    public var options: Options {
+        self.value.options
+    }
+    
 }
 
 @available(iOS 14.0, *)
@@ -69,7 +74,7 @@ public struct PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options.
     @frozen
-    public struct Options {
+    public struct Options: Equatable, Hashable {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
@@ -77,16 +82,23 @@ extension PresentationLinkTransition {
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
 
+        /// When true, the top-most View controller will be used insteaed of the source-view presenting view controller
+        public var presentsFromTopMostViewController: Bool
+
+        
         public init(
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
-            preferredPresentationBackgroundColor: Color? = nil
+            preferredPresentationBackgroundColor: Color? = nil,
+            presentsFromTopMostViewController: Bool = false
+
         ) {
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+            self.presentsFromTopMostViewController = presentsFromTopMostViewController
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
@@ -101,6 +113,7 @@ extension PresentationLinkTransition {
             return uiColor ?? UIColor(color)
         }
     }
+    
 }
 
 @available(iOS 14.0, *)
@@ -432,7 +445,7 @@ extension PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options for a slide transition.
     @frozen
-    public struct SlideTransitionOptions {
+    public struct SlideTransitionOptions: Equatable, Hashable {
 
         public var edge: Edge
         public var prefersScaleEffect: Bool
