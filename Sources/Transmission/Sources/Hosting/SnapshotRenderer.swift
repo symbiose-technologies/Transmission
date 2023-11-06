@@ -28,7 +28,6 @@ public enum SnapshotRendererColorSpace {
             return CGColorSpace(name: CGColorSpace.sRGB)!
         }
     }
-
     func toUIKit() -> UIGraphicsImageRendererFormat.Range {
         switch self {
         case .extendedLinear:
@@ -80,6 +79,7 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
     public init(content: Content) {
         let host = HostingView(
             content: content.modifier(SnapshotRendererModifier(scale: 1))
+
         )
         host.disablesSafeArea = true
         host.layer.shouldRasterize = true
@@ -124,6 +124,7 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
             context.concatenate(
                 CGAffineTransformMake(1, 0, 0, -1, 0, CGFloat(context.height))
             )
+
             callback(context)
             let image = context.makeImage()
             return image
