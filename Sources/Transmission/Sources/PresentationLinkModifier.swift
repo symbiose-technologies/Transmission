@@ -161,7 +161,17 @@ private struct PresentationLinkModifierBody<
     var destination: Destination
 
     @WeakState var presentingViewController: UIViewController?
-
+    var presentsFromTopMostVC: Bool {
+        //pluck from the transition: options.presentsFromTopMostViewController
+        //        return true
+        return self.transition.options.presentsFromTopMostViewController
+    }
+    func getPresentingViewController() -> UIViewController? {
+    //        print("PresentationLinkModifier presentsFromTopMostVC: \(presentsFromTopMostVC) for transition: \(transition) isPresented: \(isPresented.wrappedValue)")
+        return presentingViewController
+    }
+    
+    
     typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {

@@ -2,6 +2,34 @@
 // Copyright (c) Nathan Tannar
 //
 
+
+public class SlidePresentationGesturalManager {
+    public static var shared: SlidePresentationGesturalManager = SlidePresentationGesturalManager()
+
+    // Dictionary to keep track of individual blockers.
+    private var blockers: [String: Bool] = [:]
+
+    // Aggregate to determine if any blocker is true.
+    public var aggregateIsBlocked: Bool {
+        return blockers.values.contains(true)
+    }
+
+    private init() {}
+
+    // Setter for individual blockers
+    public func setSlideGestureIsBlocked(_ isBlocked: Bool, forId id: String) {
+        print("SlidePresentationGesturalManager setSlideGestureIsBlocked: \(isBlocked) for id: \(id)")
+        blockers[id] = isBlocked
+    }
+
+    // You can also have a function to remove a blocker when not needed anymore
+    public func removeBlocker(forId id: String) {
+        blockers[id] = nil
+    }
+}
+
+
+
 #if os(iOS)
 
 import SwiftUI
@@ -48,6 +76,10 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
     private func onPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
         let scrollView = gestureRecognizer.view as? UIScrollView
         guard let containerView = containerView else {
+            return
+        }
+        guard !SlidePresentationGesturalManager.shared.aggregateIsBlocked else {
+            print("SlidePresentationGesture is blocked!")
             return
         }
 
@@ -240,6 +272,12 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
             }
             return false
         }
+        
+        
+        if SlidePresentationGesturalManager.shared.aggregateIsBlocked {
+            return true
+        }
+
         return false
     }
 }
