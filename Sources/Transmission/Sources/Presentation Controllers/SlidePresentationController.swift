@@ -1,31 +1,6 @@
 //
 // Copyright (c) Nathan Tannar
 //
-public class SlidePresentationGesturalManager {
-    public static var shared: SlidePresentationGesturalManager = SlidePresentationGesturalManager()
-
-    // Dictionary to keep track of individual blockers.
-    private var blockers: [String: Bool] = [:]
-
-    // Aggregate to determine if any blocker is true.
-    public var aggregateIsBlocked: Bool {
-        return blockers.values.contains(true)
-    }
-    
-    private init() {}
-    
-    // Setter for individual blockers
-    public func setSlideGestureIsBlocked(_ isBlocked: Bool, forId id: String) {
-        print("SlidePresentationGesturalManager setSlideGestureIsBlocked: \(isBlocked) for id: \(id)")
-        blockers[id] = isBlocked
-    }
-    
-    // You can also have a function to remove a blocker when not needed anymore
-    public func removeBlocker(forId id: String) {
-        blockers[id] = nil
-    }
-}
-
 
 #if os(iOS)
 
@@ -75,11 +50,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         guard let containerView = containerView else {
             return
         }
-        guard !SlidePresentationGesturalManager.shared.aggregateIsBlocked else {
-            print("SlidePresentationGesture is blocked!")
-            return
-        }
-        
+
         let gestureTranslation = gestureRecognizer.translation(in: containerView)
         let offset = CGPoint(
             x: gestureTranslation.x - translationOffset.x,
@@ -254,6 +225,11 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
+            guard otherGestureRecognizer.isScrollViewPanGesture else {
+                // Cancel
+                gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
+                return true
+            }
             scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
             switch edge {
             case .bottom, .trailing:
@@ -268,75 +244,21 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
                 )
             }
             return false
-        } else {
-//            let otherState = otherGestureRecognizer.state
-//            var hasDelegate = false
-//            if let otherDel = otherGestureRecognizer.delegate {
-//                hasDelegate = true
-//            }
-//            let cancelsTouches = otherGestureRecognizer.cancelsTouchesInView
-//        
-//            let numTouches = otherGestureRecognizer.numberOfTouches
-//            
-//            let clsName = otherGestureRecognizer.clsName
-//            let isSwiftUI = otherGestureRecognizer.isSwiftUIGesture
-            
-            
-//            var isSwipeActionTarget: Bool = false
-            
-            
-//            if let gView = otherGestureRecognizer.view,
-//               let identityView = gView.backgroundIdentityView(with: AnyHashable("SWIPE_ACTION_TARGET")) {
-//                
-//                isSwipeActionTarget = true
-//                print("FOUND SWIPE ACTION TARGET!!!!")
-//            }
-//            
-//            
-//            if let v = otherGestureRecognizer.view {
-//                let allsubviewIds = v.allSubviewIdentityIds()
-//                print("### v.allSubviewIdentityIds: \(allsubviewIds)")
-//
-//                
-//                for svId in allsubviewIds {
-//                    print("### Found Identified Subview: \(svId as? String ?? "NOT_CASTABLE")")
-//
-//                }
-//            }
-//            
-//            if let targetView = gestureRecognizer.view {
-//                let targetAllsubviewIds = targetView.allSubviewIdentityIds()
-//                print("### targetView.targetAllsubviewIds: \(targetAllsubviewIds)")
-//
-//                for svId in targetAllsubviewIds {
-//                    print("### Found Identified Subview: \(svId as? String ?? "NOT_CASTABLE")")
-//
-//                }
-//            }
-//            
-//            print("$$$$$$$$$$$$$ \n SlidePresentationController shouldRecognizeSimultaneouslyWith: \(otherGestureRecognizer)\n state: \(otherState)\n hasDelegate: \(hasDelegate) \n cancelsTouches: \(cancelsTouches)\n numTouches: \(numTouches) isSwiftUI: \(isSwiftUI) clsName: \(clsName) isSwipeActionTarget: \(isSwipeActionTarget) $$$$$$$$$$$$$")
-
-//            if isSwiftUI && otherGestureRecognizer.state == .changed {
-//                return true
-//            }
-            
-            
-//            if isSwipeActionTarget {
-//                return true
-//            }
-            
-            
         }
-        
-        if SlidePresentationGesturalManager.shared.aggregateIsBlocked {
-            return true
-        }
-        
         return false
     }
 }
 
+extension UIGestureRecognizer {
 
+    private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
+    var isScrollViewPanGesture: Bool {
+        guard let aClass = Self.UIScrollViewPanGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
+    }
+}
 
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -468,7 +390,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             )
         } else {
             presented.view.layer.cornerRadius = cornerRadius
-            presenting.view.isHidden = false
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
                 presenting.view.transform = dzTransform
@@ -501,10 +422,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.transform = .identity
-            }
-
-            if isPresenting || animatingPosition != .end {
-                presenting.view.isHidden = true
             }
 
             switch animatingPosition {

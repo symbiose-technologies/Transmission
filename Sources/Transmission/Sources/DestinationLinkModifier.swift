@@ -165,14 +165,12 @@ private struct DestinationLinkModifierBody<
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
-                    isPresented: isPresented,
                     context: context
                 )
             } else if let navigationController = presentingViewController.navigationController {
 
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
-                    isPresented: isPresented,
                     transition: transition.value,
                     context: context
                 )
@@ -406,12 +404,18 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         if let interactionController {
             return interactionController
         } else if let id = topDelegate, let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let interactionController = delegate.navigationController?(
                 navigationController,
                 interactionControllerFor: animationController
             )
+            if let interactionController {
+                return interactionController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            interactionControllerFor: animationController
+        )
     }
 
     func navigationController(
@@ -430,14 +434,22 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         topDelegate = id
 
         if let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let animationController = delegate.navigationController?(
                 navigationController,
                 animationControllerFor: operation,
                 from: fromVC,
                 to: toVC
             )
+            if let animationController {
+                return animationController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            animationControllerFor: operation,
+            from: fromVC,
+            to: toVC
+        )
     }
 }
 
@@ -470,9 +482,24 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     var transition: DestinationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
+    var isPresented: Binding<Bool> {
+        Binding<Bool>(
+            get: { true },
+            set: { [weak self] newValue, transaction in
+                if !newValue, let viewController = self?.viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || DestinationCoordinator.transaction.isAnimated
+                    viewController._popViewController(animated: isAnimated) {
+                        DestinationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
+    }
+
     init(
         destination: Destination,
-        isPresented: Binding<Bool>,
         transition: DestinationLinkTransition.Value,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
@@ -481,7 +508,6 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
             self.conformance = conformance
             update(
                 destination: destination,
-                isPresented: isPresented,
                 context: context
             )
         } else {
@@ -511,23 +537,8 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
 
     func update(
         destination: Destination,
-        isPresented: Binding<Bool>,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
-        let isPresented = Binding<Bool>(
-            get: { true },
-            set: { [weak viewController] newValue, transaction in
-                if !newValue, let viewController = viewController {
-                    let isAnimated = transaction.isAnimated
-                        || viewController.transitionCoordinator?.isAnimated == true
-                        || DestinationCoordinator.transaction.isAnimated
-                    viewController._popViewController(animated: isAnimated) {
-                        DestinationCoordinator.transaction = nil
-                    }
-                }
-            }
-        )
-
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
