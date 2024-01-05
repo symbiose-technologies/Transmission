@@ -1,47 +1,118 @@
+//////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (c) Nathan Tannar
+//  SYMBIOSE
+//  Copyright 2023 Symbiose Technologies, Inc
+//  All Rights Reserved.
 //
+//  NOTICE: This software is proprietary information.
+//  Unauthorized use is prohibited.
+//
+// 
+// Created by: Ryan Mckinney on 12/29/23
+//
+////////////////////////////////////////////////////////////////////////////////
+
+import Foundation
 
 
-public class SlidePresentationGesturalManager {
-    public static var shared: SlidePresentationGesturalManager = SlidePresentationGesturalManager()
+#if os(iOS)
 
-    // Dictionary to keep track of individual blockers.
-    private var blockers: [String: Bool] = [:]
 
-    // Aggregate to determine if any blocker is true.
-    public var aggregateIsBlocked: Bool {
-        return blockers.values.contains(true)
-    }
-
-    private init() {}
-
-    // Setter for individual blockers
-    public func setSlideGestureIsBlocked(_ isBlocked: Bool, forId id: String) {
-        print("SlidePresentationGesturalManager setSlideGestureIsBlocked: \(isBlocked) for id: \(id)")
-        blockers[id] = isBlocked
-    }
-
-    // You can also have a function to remove a blocker when not needed anymore
-    public func removeBlocker(forId id: String) {
-        blockers[id] = nil
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+public extension PresentationLinkTransition {
+    static let customSlide: PresentationLinkTransition = .custom(CustomSlidePresentation(options: .init(edge: .trailing)))
+    static func customSliding(edge: Edge) -> PresentationLinkTransition {
+        .custom(CustomSlidePresentation(options: .init(
+            edge: edge,
+            options: .init(presentsFromTopMostViewController: true))
+        )
+        )
     }
 }
 
 
-
-#if os(iOS)
 
 import SwiftUI
 import UIKit
 import Engine
 import Turbocharger
 
+struct CustomSlidePresentation: PresentationLinkCustomTransition {
+    
+    public init(options: PresentationLinkTransition.SlideTransitionOptions) {
+        self.options = options
+    }
+    
+    
+    public var options: PresentationLinkTransition.SlideTransitionOptions
+    
+    func presentationController(sourceView: UIView, presented: UIViewController, presenting: UIViewController?) -> UIPresentationController {
+        let controller = CustomSlidePresentationController(presentedViewController: presented,
+                                          presenting: presenting)
+        controller.edge = options.edge
+        return controller
+        
+    }
+    
+    func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController
+    ) -> UIViewControllerAnimatedTransitioning? {
+        guard let presentationController = presented.presentationController as? CustomSlidePresentationController else {
+            return nil
+        }
+        let transition = CustomSlideTransition(
+            isPresenting: true,
+            options: options
+        )
+        transition.wantsInteractiveStart = false
+        return transition
+        
+    }
+
+    func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        guard let presentationController = dismissed.presentationController as? CustomSlidePresentationController else {
+            return nil
+        }
+        let transition = CustomSlideTransition(
+            isPresenting: false,
+            options: options
+        )
+        transition.wantsInteractiveStart = options.isInteractive
+        presentationController.dismiss(with: transition)
+        return transition
+        
+    }
+    
+    func interactionControllerForDismissal(using animator: UIViewControllerAnimatedTransitioning) -> UIViewControllerInteractiveTransitioning? {
+        return animator as? CustomSlideTransition
+    }
+    
+}
+//extension CustomSlidePresentation: DestinationLinkCustomTransition {
+//    func navigationController(_ navigationController: UINavigationController, interactionControllerFor animationController: UIViewControllerAnimatedTransitioning) -> UIViewControllerInteractiveTransitioning? {
+//        
+//    }
+//    
+//    func navigationController(_ navigationController: UINavigationController, 
+//                              animationControllerFor operation: UINavigationController.Operation,
+//                              from fromVC: UIViewController,
+//                              to toVC: UIViewController,
+//                              sourceView: UIView) -> UIViewControllerAnimatedTransitioning {
+//        
+//    }
+//}
+
+
+
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-class SlidePresentationController: PresentationController, UIGestureRecognizerDelegate {
+class CustomSlidePresentationController: PresentationController, UIGestureRecognizerDelegate {
 
     private weak var transition: UIPercentDrivenInteractiveTransition?
     open var edge: Edge = .bottom
@@ -322,22 +393,11 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
     }
 }
 
-extension UIGestureRecognizer {
-
-    private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
-    var isScrollViewPanGesture: Bool {
-        guard let aClass = Self.UIScrollViewPanGestureRecognizer else {
-            return false
-        }
-        return isKind(of: aClass)
-    }
-}
-
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
+class CustomSlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     let isPresenting: Bool
     let options: PresentationLinkTransition.SlideTransitionOptions
