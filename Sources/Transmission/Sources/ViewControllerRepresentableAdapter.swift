@@ -3,7 +3,6 @@
 //
 
 #if os(iOS)
-
 import SwiftUI
 
 /// A wrapper for a `UIViewController`
@@ -28,8 +27,7 @@ public struct ViewControllerRepresentableAdapter<
     public func makeUIViewController(context: Context) -> Content {
         _makeUIViewController(context)
     }
-
     public func updateUIViewController(_ uiViewController: Content, context: Context) { }
 }
-
 #endif
+

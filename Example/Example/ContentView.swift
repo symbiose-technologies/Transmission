@@ -26,6 +26,18 @@ enum StatusBarStyle: CaseIterable, Hashable {
     }
 }
 
+struct TestVM: Identifiable, Equatable {
+    let id: String
+    let title: String
+    init(_ id: String = UUID().uuidString,
+         title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
+
+
 struct ContentView: View {
 
     @State var isStatusBarHidden: Bool = false
@@ -33,6 +45,8 @@ struct ContentView: View {
     @State var isHeroPresented: Bool = false
     @State var progress: CGFloat = 0
 
+    @State var testStack: [TestVM] = []
+    
     var body: some View {
         NavigationView {
             List {
@@ -113,9 +127,51 @@ struct ContentView: View {
                                 Text("Slide (\(String(describing: edge)))")
                             }
                         }
+                        
                     } header: {
                         Text("Slide Transitions")
                     }
+                    
+                    Section {
+                        ForEach(Edge.allCases, id: \.self) { edge in
+                            PresentationLink(transition: .customSliding(edge: edge)) {
+                                EdgeView(edge: edge)
+                            } label: {
+                                Text("Slide (\(String(describing: edge)))")
+                            }
+                        }
+                        
+                    } header: {
+                        Text("Custom Slide Transitions")
+                    }
+                    
+                    Section {
+                        
+                        Button {
+                            withAnimation {
+                                testStack.append(.init(title: "Root Item!"))
+                            }
+                        } label: {
+                            Text("Push Start of Stack!")
+                        }
+                        
+                        
+                        Text("Custom Stack Host")
+                            .withPresentationStack($testStack, transition: .customSliding(edge: .trailing)) { testStackItemBind in
+                                VStack {
+                                    Text(testStackItemBind.wrappedValue.title)
+                                    
+                                    Button {
+                                        withAnimation {
+                                            testStack.append(.init(title: "Another one + \(testStackItemBind.wrappedValue.title)"))
+                                        }
+                                    } label: {
+                                        Text("Push Next!")
+                                    }
+                                }
+                            }
+                    }
+                    
 
                     Section {
                         Button {
@@ -126,12 +182,14 @@ struct ContentView: View {
                             HStack {
                                 // Hero Move picks up the source frame from where the modifier or PresentationLink was used
                                 Color.blue.frame(width: 44, height: 44)
-                                    .presentation(transition: .heroMove, isPresented: $isHeroPresented) {
-                                        ScrollView {
-                                            VStack {
-                                                Color.blue.aspectRatio(1, contentMode: .fit)
-
-                                                Text("Hello, World")
+                                    .presentation(transition: .customSlide, isPresented: $isHeroPresented) {
+                                        VStack {
+                                            ScrollView {
+                                                VStack {
+                                                    Color.blue.aspectRatio(1, contentMode: .fit)
+                                                    
+                                                    Text("Hello, World")
+                                                }
                                             }
                                         }
                                     }
@@ -321,6 +379,10 @@ struct ContentView: View {
         }
         .navigationViewStyle(.stack)
     }
+    
+    
+    
+    
 }
 
 struct EdgeView: View {

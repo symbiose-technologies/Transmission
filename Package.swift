@@ -5,9 +5,9 @@ import PackageDescription
 let package = Package(
     name: "Transmission",
     platforms: [
-        .iOS(.v13),
-        .macCatalyst(.v13),
         .visionOS(.v1),
+        .iOS(.v14),
+        .macOS(.v11),
     ],
     products: [
         .library(
