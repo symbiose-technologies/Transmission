@@ -273,9 +273,23 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
     
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
+// <<<<<<< main from v1.1.1
+//             guard otherGestureRecognizer.isScrollViewPanGesture else {
+//                 // Cancel
+//                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
+//                 return true
+//             }
+// =======
             
             guard otherGestureRecognizer.isScrollViewPanGesture else {
                 // Cancel
@@ -463,7 +477,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             )
         } else {
             presented.view.layer.cornerRadius = cornerRadius
-            presenting.view.isHidden = false
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
                 presenting.view.transform = dzTransform
@@ -496,10 +509,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.transform = .identity
-            }
-
-            if isPresenting || animatingPosition != .end {
-                presenting.view.isHidden = true
             }
 
             switch animatingPosition {

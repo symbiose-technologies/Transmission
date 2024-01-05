@@ -15,6 +15,7 @@ public struct ViewRepresentableAdapter<
 
     @usableFromInline
     var _makeUIView: (Context) -> Content
+
     @inlinable
     public init(_ makeUIView: @escaping () -> Content) {
         self._makeUIView = { _ in makeUIView() }
