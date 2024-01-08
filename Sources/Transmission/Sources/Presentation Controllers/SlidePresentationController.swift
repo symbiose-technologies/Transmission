@@ -275,7 +275,26 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+//        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+        
+        // Check if otherGestureRecognizer is kind of UIScreenEdgePanGestureRecognizer
+        let isOtherGestureRecognizerKindOfEdgePan = otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+
+        // If the otherGestureRecognizer's view is a descendant of UINavigationController
+        if let navigationController = otherGestureRecognizer.view?.findViewController() as? UINavigationController,
+           !navigationController.viewControllers.isEmpty {
+            
+            // Check if the currently presented viewController is not the root (i.e., there is 1 or more presented viewControllers on the navigationController stack)
+            let isNotRootViewController = navigationController.viewControllers.first != navigationController.visibleViewController
+
+            return isNotRootViewController
+            
+//            return isOtherGestureRecognizerKindOfEdgePan && isNotRootViewController
+        }
+
+        
+        return isOtherGestureRecognizerKindOfEdgePan
+        
     }
 
     func gestureRecognizer(
@@ -333,6 +352,18 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         }
 
         return false
+    }
+}
+
+extension UIView {
+    func findViewController() -> UIViewController? {
+        if let nextResponder = self.next as? UIViewController {
+            return nextResponder
+        } else if let nextResponder = self.next as? UIView {
+            return nextResponder.findViewController()
+        } else {
+            return nil
+        }
     }
 }
 
