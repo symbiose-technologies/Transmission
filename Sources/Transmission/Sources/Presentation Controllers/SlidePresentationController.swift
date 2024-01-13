@@ -280,6 +280,13 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         // Check if otherGestureRecognizer is kind of UIScreenEdgePanGestureRecognizer
         let isOtherGestureRecognizerKindOfEdgePan = otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
 
+        
+//        if let view = otherGestureRecognizer.view {
+//            if view.isViewControllerInsideNavigationStack() {
+//                
+//            }
+//        }
+        
         // If the otherGestureRecognizer's view is a descendant of UINavigationController
         if let navigationController = otherGestureRecognizer.view?.findViewController() as? UINavigationController,
            !navigationController.viewControllers.isEmpty {
@@ -365,6 +372,54 @@ extension UIView {
             return nil
         }
     }
+    
+    var parentViewController: UIViewController? {
+        var parentResponder: UIResponder? = self
+        while parentResponder != nil {
+            // swiftlint:disable:next force_unwrapping
+            parentResponder = parentResponder!.next
+            if let viewController = parentResponder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
+    }
+
+    var parentNavigationController: UINavigationController? {
+        let currentViewController = parentViewController
+        if let navigationController = currentViewController as? UINavigationController {
+            return navigationController
+        }
+        return currentViewController?.navigationController
+    }
+    
+    
+    func isViewControllerInsideNavigationStack() -> Bool {
+        guard let viewController = self.parentViewController else {
+                return false
+        }
+        
+        if let navigationController = viewController as? UINavigationController {
+            return navigationController.viewControllers.count > 1
+        } else if let navigationController = viewController.navigationController {
+            if let index = navigationController.viewControllers.firstIndex(of: viewController) {
+                return index > 0
+            }
+        } else {
+            // Check if the ViewController is embedded
+            var parent = viewController.parent
+            while parent != nil {
+                guard let navigationController = parent as? UINavigationController else {
+                    parent = parent?.parent
+                    continue
+                }
+                return navigationController.viewControllers.count > 0
+            }
+        }
+
+        return false
+    }
+    
 }
 
 extension UIGestureRecognizer {
