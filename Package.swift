@@ -5,12 +5,9 @@ import PackageDescription
 let package = Package(
     name: "Transmission",
     platforms: [
-        .iOS(.v14),
-        .macOS(.v10_15),
+        .iOS(.v13),
         .macCatalyst(.v13),
-//        .visionOS(.v1),
-        .tvOS(.v13),
-        .watchOS(.v6)
+        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -19,7 +16,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "1.0.0"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "1.4.0"),
         .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.0.1"),
     ],
     targets: [
