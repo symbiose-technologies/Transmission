@@ -7,7 +7,8 @@ let package = Package(
     platforms: [
         .iOS(.v14),
         .macOS(.v10_15),
-//        .visionOS(.v1),
+        .macCatalyst(.v13),
+        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -16,8 +17,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "1.0.0"),
-        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.0.0"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "1.4.0"),
+        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.0.1"),
     ],
     targets: [
         .target(

@@ -7,10 +7,7 @@
 //  NOTICE: This software is proprietary information.
 //  Unauthorized use is prohibited.
 //
-//
-// Created by: Ryan Mckinney on 10/19/23
-//
-////////////////////////////////////////////////////////////////////////////////
+
 import Foundation
 
 #if canImport(UIKit)

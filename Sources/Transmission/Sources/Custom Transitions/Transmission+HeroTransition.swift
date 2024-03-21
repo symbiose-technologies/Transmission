@@ -7,10 +7,7 @@
 //  NOTICE: This software is proprietary information.
 //  Unauthorized use is prohibited.
 //
-//
-// Created by: Ryan Mckinney on 10/12/23
-//
-////////////////////////////////////////////////////////////////////////////////
+
 #if os(iOS)
 import Foundation
 import SwiftUI
@@ -274,6 +271,7 @@ class HeroMoveInteractiveTransition: UIPercentDrivenInteractiveTransition, UIVie
     }
 
     // MARK: - UIViewControllerAnimatedTransitioning
+
     func transitionDuration(using transitionContext: UIViewControllerContextTransitioning?) -> TimeInterval {
         transitionContext?.isAnimated == true ? 0.35 : 0
     }

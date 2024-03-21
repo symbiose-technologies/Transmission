@@ -254,9 +254,21 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
+            guard otherGestureRecognizer.isSimultaneousWithSlideTransition else {
+                // Cancel
+                gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
+                return true
+            }
             scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
             switch edge {
             case .bottom, .trailing:
@@ -279,6 +291,23 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         }
 
         return false
+    }
+}
+
+extension UIGestureRecognizer {
+
+    var isSimultaneousWithSlideTransition: Bool {
+        isScrollViewPanGesture
+            || delaysTouchesBegan
+            || isKind(of: UIPinchGestureRecognizer.self)
+    }
+
+    private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
+    var isScrollViewPanGesture: Bool {
+        guard let aClass = Self.UIScrollViewPanGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
     }
 }
 
@@ -412,7 +441,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             )
         } else {
             presented.view.layer.cornerRadius = cornerRadius
-            presenting.view.isHidden = false
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
                 presenting.view.transform = dzTransform
@@ -445,10 +473,6 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.transform = .identity
-            }
-
-            if isPresenting || animatingPosition != .end {
-                presenting.view.isHidden = true
             }
 
             switch animatingPosition {

@@ -126,7 +126,7 @@ extension View {
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         self.destination(transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(destination)
         }
     }
 }
@@ -145,7 +145,7 @@ private struct DestinationLinkModifierBody<
 
     @WeakState var presentingViewController: UIViewController?
 
-    typealias DestinationViewController = HostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
+    typealias DestinationViewController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
@@ -165,14 +165,12 @@ private struct DestinationLinkModifierBody<
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
-                    isPresented: isPresented,
                     context: context
                 )
             } else if let navigationController = presentingViewController.navigationController {
 
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
-                    isPresented: isPresented,
                     transition: transition.value,
                     context: context
                 )
@@ -192,16 +190,20 @@ private struct DestinationLinkModifierBody<
         } else if let adapter = context.coordinator.adapter,
             !isPresented.wrappedValue
         {
-            let isAnimated = context.transaction.isAnimated || DestinationCoordinator.transaction.isAnimated
             let viewController = adapter.viewController!
+            let isAnimated = context.transaction.isAnimated
+                || viewController.transitionCoordinator?.isAnimated == true
+                || DestinationCoordinator.transaction.isAnimated
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: isAnimated) {
-                    viewController._popViewController(animated: isAnimated)
-                    DestinationCoordinator.transaction = nil
+                    viewController._popViewController(animated: isAnimated) {
+                        DestinationCoordinator.transaction = nil
+                    }
                 }
             } else {
-                viewController._popViewController(animated: isAnimated)
-                DestinationCoordinator.transaction = nil
+                viewController._popViewController(animated: isAnimated) {
+                    DestinationCoordinator.transaction = nil
+                }
             }
             context.coordinator.adapter = nil
         }
@@ -303,11 +305,13 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
     private var topDelegate: ObjectIdentifier?
     private var animationController: UIViewControllerAnimatedTransitioning?
     private var interactionController: UIViewControllerInteractiveTransitioning?
+    private weak var popGestureDelegate: UIGestureRecognizerDelegate?
 
     init(for navigationController: UINavigationController) {
         super.init()
         self.delegate = navigationController.delegate
         self.navigationController = navigationController
+        popGestureDelegate = navigationController.interactivePopGestureRecognizer?.delegate
         navigationController.delegate = self
         navigationController.interactivePopGestureRecognizer?.delegate = self
     }
@@ -325,8 +329,43 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         interactionController = nil
     }
 
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldRequireFailureOf: otherGestureRecognizer
+        )
+        return shouldRequireFailureOf ?? false
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
+        )
+        return shouldRecognizeSimultaneouslyWith ?? false
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldBeRequiredToFailBy: otherGestureRecognizer
+        )
+        return shouldBeRequiredToFailBy ?? true
+    }
+
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(gestureRecognizer) ?? true
         guard
+            canBegin,
             let navigationController = navigationController,
             navigationController.transitionCoordinator == nil,
             navigationController.viewControllers.count > 1
@@ -406,12 +445,18 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         if let interactionController {
             return interactionController
         } else if let id = topDelegate, let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let interactionController = delegate.navigationController?(
                 navigationController,
                 interactionControllerFor: animationController
             )
+            if let interactionController {
+                return interactionController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            interactionControllerFor: animationController
+        )
     }
 
     func navigationController(
@@ -430,14 +475,22 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         topDelegate = id
 
         if let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let animationController = delegate.navigationController?(
                 navigationController,
                 animationControllerFor: operation,
                 from: fromVC,
                 to: toVC
             )
+            if let animationController {
+                return animationController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            animationControllerFor: operation,
+            from: fromVC,
+            to: toVC
+        )
     }
 }
 
@@ -465,14 +518,29 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     var viewController: UIViewController!
     var context: Any!
 
-    typealias DestinationController = HostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
+    typealias DestinationController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     var transition: DestinationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
+    var isPresented: Binding<Bool> {
+        Binding<Bool>(
+            get: { true },
+            set: { [weak self] newValue, transaction in
+                if !newValue, let viewController = self?.viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || DestinationCoordinator.transaction.isAnimated
+                    viewController._popViewController(animated: isAnimated) {
+                        DestinationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
+    }
+
     init(
         destination: Destination,
-        isPresented: Binding<Bool>,
         transition: DestinationLinkTransition.Value,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
@@ -481,7 +549,6 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
             self.conformance = conformance
             update(
                 destination: destination,
-                isPresented: isPresented,
                 context: context
             )
         } else {
@@ -511,23 +578,8 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
 
     func update(
         destination: Destination,
-        isPresented: Binding<Bool>,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
-        let isPresented = Binding<Bool>(
-            get: { true },
-            set: { [weak viewController] newValue, transaction in
-                if !newValue, let viewController = viewController {
-                    let isAnimated = transaction.isAnimated
-                        || viewController.transitionCoordinator?.isAnimated == true
-                        || DestinationCoordinator.transaction.isAnimated
-                    viewController._popViewController(animated: isAnimated) {
-                        DestinationCoordinator.transaction = nil
-                    }
-                }
-            }
-        )
-
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
@@ -609,7 +661,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
             if adapter.context == nil {
                 let coordinator = destination.makeCoordinator()
                 let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, xrOS 1.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
                     preferenceBridge = unsafeBitCast(
                         context,
                         to: Context<DestinationLinkModifierBody<Destination>.Coordinator>.V4.self
@@ -658,7 +710,9 @@ extension DestinationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
 
-        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
+        if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
+            viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
+        }
     }
 }
 

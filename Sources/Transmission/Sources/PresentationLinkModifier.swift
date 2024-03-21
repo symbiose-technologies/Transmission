@@ -143,7 +143,7 @@ extension View {
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         presentation(transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(destination)
         }
     }
 }
@@ -172,7 +172,9 @@ private struct PresentationLinkModifierBody<
     }
     
     
-    typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+//     typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+
+    typealias DestinationViewController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
@@ -258,18 +260,19 @@ private struct PresentationLinkModifierBody<
 
                 adapter.update(
                     destination: destination,
-                    isPresented: isPresented,
                     sourceView: uiView,
                     context: context
                 )
             } else {
-                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
+                let adapter: PresentationLink
+              
+              
+              Adapter<Destination>
                 if let oldValue = context.coordinator.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
                     adapter.update(
                         destination: destination,
-                        isPresented: isPresented,
                         sourceView: uiView,
                         context: context
                     )
@@ -277,7 +280,6 @@ private struct PresentationLinkModifierBody<
                 } else {
                     adapter = PresentationLinkDestinationViewControllerAdapter(
                         destination: destination,
-                        isPresented: isPresented,
                         sourceView: uiView,
                         transition: transition.value,
                         context: context
@@ -315,9 +317,7 @@ private struct PresentationLinkModifierBody<
                                     layoutDirection: traits.layoutDirection
                                 )
                                 popoverPresentationController.permittedArrowDirections = permittedArrowDirections
-                                //#if !os(xrOS)
                                 popoverPresentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
-                                //#endif
                             }
                         }
                     }
@@ -819,7 +819,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View
 > {
 
-    typealias DestinationController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+    typealias DestinationController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     var viewController: UIViewController!
     var context: Any!
@@ -827,9 +827,24 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var transition: PresentationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
+    var isPresented: Binding<Bool> {
+        Binding<Bool>(
+            get: { true },
+            set: { [weak self] newValue, transaction in
+                if !newValue, let viewController = self?.viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || PresentationCoordinator.transaction.isAnimated
+                    viewController.dismiss(animated: isAnimated) {
+                        PresentationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
+    }
+
     init(
         destination: Destination,
-        isPresented: Binding<Bool>,
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
         context: PresentationLinkModifierBody<Destination>.Context
@@ -839,7 +854,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
             self.conformance = conformance
             update(
                 destination: destination,
-                isPresented: isPresented,
                 sourceView: sourceView,
                 context: context
             )
@@ -879,23 +893,9 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     func update(
         destination: Destination,
-        isPresented: Binding<Bool>,
         sourceView: UIView,
         context: PresentationLinkModifierBody<Destination>.Context
     ) {
-        let isPresented = Binding<Bool>(
-            get: { true },
-            set: { [weak viewController] newValue, transaction in
-                if !newValue, let viewController = viewController {
-                    let isAnimated = transaction.isAnimated
-                        || viewController.transitionCoordinator?.isAnimated == true
-                        || PresentationCoordinator.transaction.isAnimated
-                    viewController.dismiss(animated: isAnimated) {
-                        PresentationCoordinator.transaction = nil
-                    }
-                }
-            }
-        )
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
@@ -982,7 +982,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             if adapter.context == nil {
                 let coordinator = destination.makeCoordinator()
                 let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, xrOS 1.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
                     preferenceBridge = unsafeBitCast(
                         context,
                         to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.V4.self
@@ -1030,10 +1030,12 @@ private class PresentationLinkDestinationViewControllerAdapter<
 @available(watchOS, unavailable)
 extension PresentationLinkTransition.Value {
 
-    func update<Content: View>(_ viewController: HostingController<Content>) {
+    func update<Content: View>(_ viewController: PresentationHostingController<Content>) {
 
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
+        if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
+            viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
+        }
 
         switch self {
         case .sheet(let options):
