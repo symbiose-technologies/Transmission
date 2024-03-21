@@ -264,10 +264,8 @@ private struct PresentationLinkModifierBody<
                     context: context
                 )
             } else {
-                let adapter: PresentationLink
-              
-              
-              Adapter<Destination>
+                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
+
                 if let oldValue = context.coordinator.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
