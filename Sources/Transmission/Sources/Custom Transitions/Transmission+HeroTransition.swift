@@ -7,10 +7,6 @@
 //  NOTICE: This software is proprietary information.
 //  Unauthorized use is prohibited.
 //
-// 
-// Created by: Ryan Mckinney on 10/12/23
-//
-////////////////////////////////////////////////////////////////////////////////
 
 #if os(iOS)
 import Foundation
