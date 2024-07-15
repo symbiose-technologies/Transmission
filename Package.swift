@@ -16,8 +16,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "1.8.3"),
-        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.3.1"),
+        .package(url: "https://github.com/nathantannar4/Engine", branch: "symbiose-1.8.3"),
+        .package(url: "https://github.com/symbiose-technologies/Turbocharger", branch: "symbiose-1.3.1"),
     ],
     targets: [
         .target(
